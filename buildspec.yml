@@ -13,15 +13,32 @@ phases:
   build:
     commands:
       - echo "Building application..."
-      # For a simple Python app, "building" might just mean zipping it up.
-      # For a more complex app, it could involve creating a Docker image.
       - zip -r app.zip .
   post_build:
     commands:
-      - echo "Build complete. Uploading artifact to S3 (this is handled by CodeBuild config)."
-      - echo "Pushing artifact to Bitbucket (if configured)."
-      # We'll add the Bitbucket push command later in this section
+      - echo "Build complete. Pushing artifact to Bitbucket."
+      # Retrieve Bitbucket app password from Secrets Manager
+      # Make sure to replace YOUR_ACCOUNT_ID and BITBUCKET_USERNAME
+      - |
+        export BITBUCKET_APP_PASSWORD=$(aws secretsmanager get-secret-value --secret-id bitbucket/codebuild-app-password --query SecretString --output text | jq -r .BITBUCKET_APP_PASSWORD)
+
+      # Configure Git for Bitbucket push
+      - git config --global user.email "codebuild@example.com"
+      - git config --global user.name "AWS CodeBuild"
+
+      # Clone the Bitbucket repository into a temporary directory
+      # Replace YOUR_BITBUCKET_USERNAME and your-bitbucket-repo-name
+      - git clone https://x-token-auth:${BITBUCKET_APP_PASSWORD}@bitbucket.org/YOUR_BITBUCKET_USERNAME/my-python-app-builds.git /tmp/bitbucket_repo
+
+      - cd /tmp/bitbucket_repo
+      - rm -rf * # Clear existing contents (be careful with this in production!)
+      - cp $CODEBUILD_SRC_DIR/app.zip . # Copy the generated artifact
+      - git add .
+      - git commit -m "CodeBuild artifact for build $CODEBUILD_BUILD_NUMBER" || true # || true to prevent build failure if no changes
+      - git push origin main
+      - echo "Artifact pushed to Bitbucket successfully."
+
 artifacts:
   files:
     - app.zip
-  discard-paths: yes # Ensures app.zip is at the root of the artifact
+  discard-paths: yes
