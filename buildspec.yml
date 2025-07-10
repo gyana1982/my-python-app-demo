@@ -25,6 +25,8 @@ phases:
       # Also, confirm your CodeBuild service role has 'secretsmanager:GetSecretValue' permissions.
       - |
         export BITBUCKET_APP_PASSWORD=$(aws secretsmanager get-secret-value --secret-id bitbucket/codebuild-app-password --query SecretString --output text | jq -r .BITBUCKET_APP_PASSWORD)
+      - echo "BITBUCKET_APP_PASSWORD variable length: ${#BITBUCKET_APP_PASSWORD}"
+      - echo "Bitbucket URL without password: https://x-token-auth@bitbucket.org/home_123/my-python-app-builds.git"
       - echo "Successfully retrieved Bitbucket app password from Secrets Manager."
 
 
