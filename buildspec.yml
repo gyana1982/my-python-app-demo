@@ -12,33 +12,52 @@ phases:
       - python -m unittest discover
   build:
     commands:
-      - echo "Building application..."
+      - echo "Building application (creating app.zip)..."
       - zip -r app.zip .
   post_build:
     commands:
-      - echo "Build complete. Pushing artifact to Bitbucket."
-      # Retrieve Bitbucket app password from Secrets Manager
-      # Make sure to replace YOUR_ACCOUNT_ID and BITBUCKET_USERNAME
+      - echo "Starting Bitbucket artifact push process."
+
+      # --- Step 1: Retrieve Bitbucket App Password from AWS Secrets Manager ---
+      # This command fetches the secret value from Secrets Manager.
+      # The 'jq -r .BITBUCKET_APP_PASSWORD' part extracts the specific key.
+      # Ensure 'bitbucket/codebuild-app-password' matches the secret name you created.
+      # Also, confirm your CodeBuild service role has 'secretsmanager:GetSecretValue' permissions.
       - |
         export BITBUCKET_APP_PASSWORD=$(aws secretsmanager get-secret-value --secret-id bitbucket/codebuild-app-password --query SecretString --output text | jq -r .BITBUCKET_APP_PASSWORD)
+      - echo "Successfully retrieved Bitbucket app password from Secrets Manager."
 
-      # Configure Git for Bitbucket push
+
+      # --- Step 2: Configure Git for the push operation ---
+      # These commands set the author information for the commit that CodeBuild will make in Bitbucket.
       - git config --global user.email "codebuild@example.com"
       - git config --global user.name "AWS CodeBuild"
+      - echo "Git user configured."
 
-      # Clone the Bitbucket repository into a temporary directory
-      # Replace YOUR_BITBUCKET_USERNAME and your-bitbucket-repo-name
+      # --- Step 3: Clone the Bitbucket artifact repository ---
+      # IMPORTANT:
+      # 1. Replace 'YOUR_BITBUCKET_USERNAME' with YOUR EXACT Bitbucket Cloud username (case-sensitive).
+      # 2. 'my-python-app-builds.git' should be the EXACT name of the Bitbucket repository
+      #    where you want to store your build artifacts (case-sensitive).
+      # The 'x-token-auth:${BITBUCKET_APP_PASSWORD}' part handles authentication.
+      - echo "Attempting to clone Bitbucket repository..."
       - git clone https://x-token-auth:${BITBUCKET_APP_PASSWORD}@bitbucket.org/YOUR_BITBUCKET_USERNAME/my-python-app-builds.git /tmp/bitbucket_repo
+      - echo "Bitbucket repository cloned successfully."
 
+      # --- Step 4: Prepare and push the artifact to the cloned repository ---
+      # 'cd' into the cloned repo.
+      # 'rm -rf *' clears any existing content (use with caution in production if you need history).
+      # 'cp' copies the newly built 'app.zip' into the cloned repository.
+      # 'git add', 'git commit', and 'git push' send the artifact to Bitbucket.
       - cd /tmp/bitbucket_repo
-      - rm -rf * # Clear existing contents (be careful with this in production!)
-      - cp $CODEBUILD_SRC_DIR/app.zip . # Copy the generated artifact
+      - rm -rf * || true # Use '|| true' to prevent script from failing if nothing to remove
+      - cp $CODEBUILD_SRC_DIR/app.zip .
       - git add .
-      - git commit -m "CodeBuild artifact for build $CODEBUILD_BUILD_NUMBER" || true # || true to prevent build failure if no changes
+      - git commit -m "CodeBuild artifact for build $CODEBUILD_BUILD_NUMBER" || true # '|| true' allows the build to continue if no changes were made (e.g., re-running build without new artifact).
       - git push origin main
-      - echo "Artifact pushed to Bitbucket successfully."
+      - echo "Artifact (app.zip) pushed to Bitbucket successfully."
 
 artifacts:
   files:
     - app.zip
-  discard-paths: yes
+  discard-paths: yes # Ensures app.zip is at the root of the artifact
