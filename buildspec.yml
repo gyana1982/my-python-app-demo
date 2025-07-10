@@ -1,0 +1,27 @@
+version: 0.2
+
+phases:
+  install:
+    commands:
+      - echo "Installing dependencies..."
+      - pip install --upgrade pip
+      - pip install -r requirements.txt
+  pre_build:
+    commands:
+      - echo "Running tests..."
+      - python -m unittest discover
+  build:
+    commands:
+      - echo "Building application..."
+      # For a simple Python app, "building" might just mean zipping it up.
+      # For a more complex app, it could involve creating a Docker image.
+      - zip -r app.zip .
+  post_build:
+    commands:
+      - echo "Build complete. Uploading artifact to S3 (this is handled by CodeBuild config)."
+      - echo "Pushing artifact to Bitbucket (if configured)."
+      # We'll add the Bitbucket push command later in this section
+artifacts:
+  files:
+    - app.zip
+  discard-paths: yes # Ensures app.zip is at the root of the artifact
