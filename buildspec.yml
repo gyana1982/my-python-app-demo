@@ -41,7 +41,7 @@ phases:
       #    where you want to store your build artifacts (case-sensitive).
       # The 'x-token-auth:${BITBUCKET_APP_PASSWORD}' part handles authentication.
       - echo "Attempting to clone Bitbucket repository..."
-      - git clone https://x-token-auth:${BITBUCKET_APP_PASSWORD}@bitbucket.org/YOUR_ACTUAL_BITBUCKET_USERNAME/my-python-app-builds.git /tmp/bitbucket_repo
+      - git clone https://x-token-auth:${BITBUCKET_APP_PASSWORD}@bitbucket.org/home_123/my-python-app-builds.git /tmp/bitbucket_repo
       - echo "Bitbucket repository cloned successfully."
 
       # --- Step 4: Prepare and push the artifact to the cloned repository ---
